@@ -1,0 +1,5 @@
+flask==2.2.5
+itemadapter==0.3.0
+psycopg2==2.9.6
+pyopenssl==22.0.0
+cryptography==38.0.4
