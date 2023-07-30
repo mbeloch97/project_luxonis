@@ -12,7 +12,6 @@ class SrealitySpider(scrapy.Spider):
     counter = 0
     page = 1;
     def __init__(self):
-        self.create_database()
         dispatcher.connect(self.spider_closed, signals.spider_closed)
 
     def parse(self, response):
@@ -83,6 +82,7 @@ class SrealitySpider(scrapy.Spider):
             json.dump(self.results, fp, ensure_ascii=False)
 
         try:
+            self.create_database()
             conn = psycopg2.connect(host="db", database="mydatabase", user="postgres", password="1234", port="5432")
             conn.autocommit = True
             cursor = conn.cursor()
