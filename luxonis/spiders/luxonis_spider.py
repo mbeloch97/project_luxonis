@@ -7,14 +7,25 @@ import psycopg2
 
 class SrealitySpider(scrapy.Spider):
     name = "sreality"
+
+    "We use escaped fragment of the page - that means a version without javascript."
     start_urls = ["https://www.sreality.cz/en/search/for-sale/apartments?_escaped_fragment_="];
+
     results = {}
     counter = 0
     page = 1;
+
     def __init__(self):
+        """
+        Waits for signal, that is reveived after parsing is finished.
+        It will call a function spider_closed().
+        """
         dispatcher.connect(self.spider_closed, signals.spider_closed)
 
     def parse(self, response):
+        """
+        Parsing data from web response. This is the main scrappy logic.
+        """
         print("Parsing page %d" %(self.page))
         for sel in response.css("div.dir-property-list > div.property.ng-scope"):
             if (sel):
@@ -23,15 +34,12 @@ class SrealitySpider(scrapy.Spider):
                                 "> div._15Md1MuBeW62jbm5iL0XqR._1sm7uHIebD7tngzBEQy3dD "
                                 "> div._2xzMRvpz7TDA2twKCXTS4R "
                                 "> a._2vc3VMce92XEJFrv8_jaeN > img::attr('src')")
-                #print(sel_imgs.get())
 
                 sel_title = sel.css("div.info.clear.ng-scope > div.text-wrap > "
                                      "span.basic > h2 > a.title > span.name.ng-binding::text")
-                #print(sel_title.get())
 
                 sel_place = sel.css("div.info.clear.ng-scope > div.text-wrap > "
                                     "span.basic > span.locality.ng-binding::text")
-                #print(sel_place.get())
 
                 sel_price = sel.css("div.info.clear.ng-scope > div.text-wrap > "
                                     "span.basic > span.price.ng-scope> span.norm-price.ng-binding::text")
@@ -40,7 +48,6 @@ class SrealitySpider(scrapy.Spider):
                 if sel_price is not None:
                     price = sel_price.get().replace(u"\xa0", "")
                     price = price.replace("CZK", "")
-                    #print(price)
 
                 self.results[self.counter] = {
                     "img_url": sel_imgs.get(),
@@ -49,15 +56,19 @@ class SrealitySpider(scrapy.Spider):
                     "price": price
                 }
                 self.counter += 1
-            #time.sleep(2)
         if self.counter <= 480:
             self.page +=1 ;
-            nextPage = "https://www.sreality.cz/en/search/for-sale/apartments?page=%d&_escaped_fragment_=" %(self.page)
+            nextPage = "https://www.sreality.cz/en/search/" \
+                       "for-sale/apartments?page=%d&_escaped_fragment_=" %(self.page)
             print(nextPage)
             time.sleep(4)
             yield response.follow(nextPage, self.parse)
 
     def create_database(self):
+        """
+        Creating new database, where we will store the parsed data.
+        It needs psql container to be fully initialized.
+        """
         try:
             print("CONNECTING")
             conn = psycopg2.connect(host="db", user="postgres", password="1234", port="5432")
@@ -76,8 +87,12 @@ class SrealitySpider(scrapy.Spider):
         except Exception as e:
             print("Error:", str(e))
 
-
     def spider_closed(self, spider):
+        """
+        This function runs after the end of parsing data.
+        It will dump a json file with parsed data (for debugging purposes).
+        Then it will create a database a commit the parsed data inside.
+        """
         with open('results.json', 'w', encoding='utf-8') as fp:
             json.dump(self.results, fp, ensure_ascii=False)
 
